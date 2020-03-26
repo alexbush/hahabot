@@ -1,5 +1,6 @@
 use rusqlite::{params, Connection, Result};
 use time::Timespec;
+use log;
 
 #[derive(Debug)]
 pub struct Message {
@@ -59,11 +60,6 @@ pub fn save(chat_id: i64, me: &Message) -> Result<()> {
                     me.author,
                 );
     db.execute(query.as_str(), params![])?;
-
-//     let mut last: String;
-//     db.query_row("select last_insert_rowid()", params![], |r| {
-//         last = Ok(r.get(0))
-//     })?;
 
     Ok(())
 }

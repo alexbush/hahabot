@@ -17,6 +17,7 @@ use std::env;
 
 mod memory;
 mod sources;
+mod corona;
 
 #[handler(command = "/start")]
 async fn handle_start(api: &Api, command: Command) -> Result<HandlerResult, ExecuteError> {
@@ -151,7 +152,19 @@ async fn handle_anekdot(api: &Api, command: Command) -> Result<(), ExecuteError>
     Ok(())
 }
 
+#[handler(command = "/corona")]
+async fn handle_corona(api: &Api, command: Command) -> Result<(), ExecuteError> {
+    let chat_id = command.get_message().get_chat_id();
 
+    let c = match corona::corona() {
+        Ok(c) => c,
+        Err(_) => "can't parse result".to_string(),
+    };
+
+    api.execute(SendMessage::new(chat_id, c)).await?;
+
+    Ok(())
+}
 
 #[handler(command = "/b")]
 async fn handle_bashorg(api: &Api, command: Command) -> Result<(), ExecuteError> {
@@ -190,7 +203,8 @@ async fn handle_help(api: &Api, command: Command) -> Result<(), ExecuteError> {
 /it - рaндомная запись с ithappens
 /b - рaндомная запись с bash.im
 /b id - запись с bash.im
-/a - анекдот";
+/a - анекдот
+/corona - coronavirus stat";
 
     api.execute(SendMessage::new(chat_id, help_msg)).await?;
     
@@ -209,6 +223,7 @@ async fn main() {
     let mut dispatcher = Dispatcher::new(api.clone());
     dispatcher.add_handler(handle_start);
     dispatcher.add_handler(handle_stop);
+    dispatcher.add_handler(handle_corona);
     dispatcher.add_handler(handle_anekdot);
     dispatcher.add_handler(handle_bashorg);
     dispatcher.add_handler(handle_ithappens);

@@ -42,9 +42,9 @@ async fn handle_mem(api: &Api, command: Command) -> Result<(), ExecuteError> {
     let args = command.get_args();
 
     let answer = if args.is_empty() {
-        let forward = message.reply_to.clone();
-        log::info!("FORWARD {:?}", forward);
-        match forward {
+        let reply = message.reply_to.clone();
+        log::info!("FORWARD {:?}", reply);
+        match reply {
             Some(f) => match f.get_text() {
                 Some(text) => { 
                     log::info!("F {:?}", f);
@@ -156,9 +156,12 @@ async fn handle_anekdot(api: &Api, command: Command) -> Result<(), ExecuteError>
 async fn handle_corona(api: &Api, command: Command) -> Result<(), ExecuteError> {
     let chat_id = command.get_message().get_chat_id();
 
-    let c = match corona::corona() {
+    let c = match corona::latest() {
         Ok(c) => c,
-        Err(_) => "can't parse result".to_string(),
+        Err(why) => {
+            eprintln!("Cat't parse all data from api: {}", why);
+            format!("Something went wrong with api")
+        }
     };
 
     api.execute(SendMessage::new(chat_id, c)).await?;

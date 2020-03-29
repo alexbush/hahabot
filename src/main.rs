@@ -155,16 +155,27 @@ async fn handle_anekdot(api: &Api, command: Command) -> Result<(), ExecuteError>
 #[handler(command = "/corona")]
 async fn handle_corona(api: &Api, command: Command) -> Result<(), ExecuteError> {
     let chat_id = command.get_message().get_chat_id();
+    let args = command.get_args();
 
-    let c = match corona::latest() {
-        Ok(c) => c,
-        Err(why) => {
-            eprintln!("Cat't parse all data from api: {}", why);
-            format!("Something went wrong with api")
+    let answer: String = if args.is_empty() {
+        match corona::latest() {
+            Ok(c) => c,
+            Err(why) => {
+                eprintln!("Cat't parse all data from api: {}", why);
+                format!("Something went wrong with api")
+            }
+        }
+    } else {
+        match corona::latest_country(&args[0]) {
+            Ok(c) => c,
+            Err(why) => {
+                eprintln!("Cat't parse all data from api: {}", why);
+                format!("Something went wrong with api or can't find this country")
+            }
         }
     };
-
-    api.execute(SendMessage::new(chat_id, c)).await?;
+    
+    api.execute(SendMessage::new(chat_id, answer)).await?;
 
     Ok(())
 }

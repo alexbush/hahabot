@@ -161,16 +161,25 @@ async fn handle_corona(api: &Api, command: Command) -> Result<(), ExecuteError> 
         match corona::latest() {
             Ok(c) => c,
             Err(why) => {
-                eprintln!("Cat't parse all data from api: {}", why);
+                log::error!("Cat't parse all data from api: {}", why);
                 format!("Something went wrong with api")
             }
         }
     } else {
-        match corona::latest_country(&args[0]) {
-            Ok(c) => c,
-            Err(why) => {
-                eprintln!("Cat't parse all data from api: {}", why);
-                format!("Something went wrong with api or can't find this country")
+        match args[0].as_str() {
+            "top" => match corona::top("today_cases".to_string()) {
+                Ok(c) => c,
+                Err(why) => {
+                    log::error!("Cat't parse all data from api: {}", why);
+                    format!("Something went wrong with api or can't find this country")
+                }
+            },
+            _ => match corona::latest_country(&args[0]) {
+                Ok(c) => c,
+                Err(why) => {
+                    log::error!("Cat't parse all data from api: {}", why);
+                    format!("Something went wrong with api or can't find this country")
+                }
             }
         }
     };
@@ -218,7 +227,9 @@ async fn handle_help(api: &Api, command: Command) -> Result<(), ExecuteError> {
 /b - рaндомная запись с bash.im
 /b id - запись с bash.im
 /a - анекдот
-/corona - coronavirus stat";
+/corona - coronavirus stat
+/corona country
+/corona top - top 5 by new cases";
 
     api.execute(SendMessage::new(chat_id, help_msg)).await?;
     

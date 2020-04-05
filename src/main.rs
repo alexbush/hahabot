@@ -158,7 +158,7 @@ async fn handle_corona(api: &Api, command: Command) -> Result<(), ExecuteError> 
     let args = command.get_args();
 
     let answer: String = if args.is_empty() {
-        match corona::latest() {
+        match corona::top("".to_string()) {
             Ok(c) => c,
             Err(why) => {
                 log::error!("Cat't parse all data from api: {}", why);
@@ -166,20 +166,11 @@ async fn handle_corona(api: &Api, command: Command) -> Result<(), ExecuteError> 
             }
         }
     } else {
-        match args[0].as_str() {
-            "top" => match corona::top("today_cases".to_string()) {
-                Ok(c) => c,
-                Err(why) => {
-                    log::error!("Cat't parse all data from api: {}", why);
-                    format!("Something went wrong with api or can't find this country")
-                }
-            },
-            _ => match corona::latest_country(&args[0]) {
-                Ok(c) => c,
-                Err(why) => {
-                    log::error!("Cat't parse all data from api: {}", why);
-                    format!("Something went wrong with api or can't find this country")
-                }
+        match corona::latest_country(&args[0].to_string()) {
+            Ok(c) => c,
+            Err(why) => {
+                log::error!("Cat't parse all data from api: {}", why);
+                format!("Something went wrong with api or can't find this country")
             }
         }
     };

@@ -1,7 +1,7 @@
 use carapax::{
     handler, 
     longpoll::LongPoll, 
-    methods::SendMessage, 
+    methods::{ SendMessage, DeleteMessage}, 
     Api, 
     Command, 
     Config, 
@@ -29,6 +29,34 @@ async fn handle_start(api: &Api, command: Command) -> Result<HandlerResult, Exec
     let method = SendMessage::new(chat_id, "Всем чьмоки в этом чате!");
     api.execute(method).await?;
     Ok(HandlerResult::Stop)
+}
+
+#[handler(command = "/me")]
+async fn handle_me(api: &Api, command: Command) -> Result<(), ExecuteError> {
+    let message = command.get_message();
+    let chat_id = message.get_chat_id();
+
+    let user: String = match message.get_user() {
+        Some(u) => match u.username.clone() {
+            Some(n) => format!("@{}", n),
+            None => u.first_name.clone()
+        },
+        None => "Someone".to_string()
+    };
+
+    let user_message: String = match message.get_text() {
+        Some(text) => text.data.clone().replace("/me ", ""),
+        None => "something".to_string(),
+    };
+
+    match api.execute(DeleteMessage::new(chat_id, message.id)).await {
+        Ok(_) => (),
+        Err(why) => println!("{}", why),
+    }
+    
+    api.execute(SendMessage::new(chat_id, format!("{} {}", user, user_message))).await?;
+
+    Ok(())
 }
 
 #[handler(command = "/m")]
@@ -244,6 +272,7 @@ async fn main() {
     dispatcher.add_handler(handle_bashorg);
     dispatcher.add_handler(handle_ithappens);
     dispatcher.add_handler(handle_mem);
+    dispatcher.add_handler(handle_me);
     dispatcher.add_handler(handle_help);
 
     LongPoll::new(api, dispatcher).run().await;

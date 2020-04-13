@@ -3,7 +3,7 @@ use carapax::{
     longpoll::LongPoll, 
     methods::{ SendMessage, DeleteMessage}, 
     Api, 
-    Command, 
+    types::{Command, ParseMode},
     Config, 
     Dispatcher, 
     ExecuteError, 
@@ -63,7 +63,7 @@ async fn handle_me(api: &Api, command: Command) -> Result<(), ExecuteError> {
 async fn handle_mem(api: &Api, command: Command) -> Result<(), ExecuteError> {
     let message = command.get_message();
     
-    log::warn!("\n\n {:?}\n\n", message);
+    println!("\n\n {:#?}\n\n", message);
 
     let chat_id = message.get_chat_id();
 
@@ -186,7 +186,7 @@ async fn handle_corona(api: &Api, command: Command) -> Result<(), ExecuteError> 
     let args = command.get_args();
 
     let answer: String = if args.is_empty() {
-        match corona::top("".to_string()) {
+        match corona::latest() {
             Ok(c) => c,
             Err(why) => {
                 log::error!("Cat't parse all data from api: {}", why);
@@ -194,16 +194,37 @@ async fn handle_corona(api: &Api, command: Command) -> Result<(), ExecuteError> 
             }
         }
     } else {
-        match corona::latest_country(&args[0].to_string()) {
-            Ok(c) => c,
-            Err(why) => {
-                log::error!("Cat't parse all data from api: {}", why);
-                format!("Something went wrong with api or can't find this country")
+        match args[0].as_str() {
+            "top" => if args.len() > 1 {
+                    match corona::top(args[1].to_string()) {
+                        Ok(c) => (c),
+                        Err(why) => {
+                            log::error!("Cat't parse top data from api: {}", why);
+                            format!("Something went wrong with api")
+                        },
+                    } 
+                } else {
+                    match corona::top("cases".to_string()) {
+                        Ok(c) => (c),
+                        Err(why) => {
+                            log::error!("Cat't parse top data from api: {}", why);
+                            format!("Something went wrong with api")
+                        },
+                    }
+                },
+            _ => match corona::latest_country(&args[0].to_string()) {
+                Ok(c) => c,
+                Err(why) => {
+                    log::error!("Cat't parse all data from api: {}", why);
+                    format!("Something went wrong with api or can't find this country")
+                }
             }
         }
     };
     
-    api.execute(SendMessage::new(chat_id, answer)).await?;
+    api.execute(SendMessage::new(chat_id, answer)
+        .parse_mode(ParseMode::MarkdownV2)
+    ).await?;
 
     Ok(())
 }
@@ -213,7 +234,6 @@ async fn handle_bashorg(api: &Api, command: Command) -> Result<(), ExecuteError>
     let chat_id = command.get_message().get_chat_id();
     let args = command.get_args();
 
-//     let mut answer: String = "".to_string();
     let answer = if args.is_empty() {
         match sources::bash(0) {
             Ok(body) => body,
@@ -246,9 +266,9 @@ async fn handle_help(api: &Api, command: Command) -> Result<(), ExecuteError> {
 /b - рaндомная запись с bash.im
 /b id - запись с bash.im
 /a - анекдот
-/corona - coronavirus stat
-/corona country
-/corona top - top 5 by new cases";
+/corona - covid stat
+/corona [country] - covid stat by country
+/corona top [help] - top 5 by new cases";
 
     api.execute(SendMessage::new(chat_id, help_msg)).await?;
     

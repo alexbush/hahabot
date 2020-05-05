@@ -1,14 +1,5 @@
 use rusqlite::{params, Connection, Result};
-use time::Timespec;
 use log;
-
-#[derive(Debug)]
-pub struct Message {
-    pub id: i64,
-    pub message: String,
-    pub author: String,
-    pub created: Timespec,
-}
 
 const PATH: &str = "./memory.sqlite";
 
@@ -48,74 +39,52 @@ pub fn create_table(chat_id: i64) -> Result<()> {
     }
 }
 
-pub fn save(chat_id: i64, me: &Message) -> Result<()> {
-    let db = Connection::open(&PATH)?;
-
-    let table = rename(chat_id);
-
-    let query = format!("INSERT INTO `{}` (message, author, created) 
-                VALUES('{}', '{}', datetime('now'))",
-                    table,
-                    me.message,
-                    me.author,
-                );
-    db.execute(query.as_str(), params![])?;
-
-    Ok(())
+pub struct Memo {
+    pub chat_id : i64,
+    table       : String,
+    pub message : Option<String>,
 }
 
-pub fn get(chat_id: i64, id: i64) -> Result<Message> {
-    let db = Connection::open(&PATH)?;
-    log::info!("try to get {} from {}", id, chat_id);
-    
-    let table = rename(chat_id);
+impl Memo {
+    pub fn new(chat_id: i64) -> Self {
+        Self {
+            chat_id,
+            table      : rename(chat_id),
+            message    : None,
+        }
+    }
+    pub fn set_message(&mut self, message: String) -> &Self {
+        self.message = Some(message);
+        self
+    }
+    pub fn get(&mut self, id: Option<i64>) -> Result<String> {
+        let db = Connection::open(&PATH)?;
+        let mut msg = String::new();
+        if id.is_none() {
+            let query = format!(
+                "SELECT message FROM `{}` ORDER BY RANDOM() LIMIT 1", self.table
+            );
+            let mut st = db.prepare(query.as_str())?;
+            st.query_row(params![], |r| { Ok(msg = r.get(0)?) })?;
+        } else {
+            let query = format!(
+                "SELECT message FROM `{}` WHERE id = ?1", self.table
+            );
+            let mut st = db.prepare(query.as_str())?;
+            st.query_row(params![id], |r| { Ok(msg = r.get(0)?) })?;
+        }
 
-    let query = format!(
-        "SELECT id, message, created, author
-        FROM `{}` WHERE id = ?1", 
-        table
-    );
+        Ok(msg)
+    }
+    pub fn save(self) -> Result<()> {
+        let db = Connection::open(&PATH)?;
 
-    let mut st = db.prepare(query.as_str())?;
+        let query = format!("INSERT INTO `{}` (message, author, created) 
+                VALUES(?, 'Anonymous', datetime('now'))",
+                self.table,
+        );
+        db.execute(query.as_str(), params![self.message])?;
 
-    let row = st.query_row(params![id], |r| {
-        Ok(Message {
-            id: r.get(0)?,
-            message: r.get(1)?,
-            created: r.get(2)?,
-            author: r.get(3)?,
-        })
-    })?;
-
-    Ok(row)
-}
-
-pub fn get_random(chat_id: i64) -> Result<Message> {
-    let db = Connection::open(&PATH)?;
-    log::info!("try to get random message from {}", chat_id);
-    
-    let table = rename(chat_id);
-
-    let query = format!(
-        "SELECT id, message, created, author
-        FROM `{}`
-        ORDER BY RANDOM() LIMIT 1", table
-    );
-
-    log::info!("{}", query);
-
-    let mut st = db.prepare(
-        query.as_str()
-    )?;
-
-    let row = st.query_row(params![], |r| {
-        Ok(Message {
-            id: r.get(0)?,
-            message: r.get(1)?,
-            created: r.get(2)?,
-            author: r.get(3)?,
-        })
-    })?;
-
-    Ok(row)
+        Ok(())
+    }
 }

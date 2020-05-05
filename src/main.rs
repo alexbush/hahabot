@@ -1,23 +1,22 @@
 use carapax::{
-    handler, 
-    longpoll::LongPoll, 
-    methods::{ SendMessage, DeleteMessage}, 
     Api, 
-    types::{Command, ParseMode},
     Config, 
     Dispatcher, 
     ExecuteError, 
     HandlerResult,
+    handler, 
+    longpoll::LongPoll, 
+    methods::{ SendMessage, DeleteMessage}, 
+    types::{Command, ParseMode},
 };
 use dotenv::dotenv;
 use env_logger;
 use log;
-use time;
 use std::env;
 
+mod corona;
 mod memory;
 mod sources;
-mod corona;
 
 #[handler(command = "/start")]
 async fn handle_start(api: &Api, command: Command) -> Result<HandlerResult, ExecuteError> {
@@ -36,7 +35,10 @@ async fn handle_me(api: &Api, command: Command) -> Result<(), ExecuteError> {
     let message = command.get_message();
     let chat_id = message.get_chat_id();
 
-    let user: String = match message.get_user() {
+    println!("{:#?}", message);
+
+
+    let me: String = match message.get_user() {
         Some(u) => match u.username.clone() {
             Some(n) => format!("@{}", n),
             None => u.first_name.clone()
@@ -54,86 +56,62 @@ async fn handle_me(api: &Api, command: Command) -> Result<(), ExecuteError> {
         Err(why) => println!("{}", why),
     }
     
-    api.execute(SendMessage::new(chat_id, format!("{} {}", user, user_message))).await?;
+    let answer = match message.reply_to.clone() {
+        None => format!("{} {}", me, user_message),
+        Some(reply) => match reply.get_user() {
+            Some(user) => match user.username.clone() {
+                Some(username) => format!("@{}, {} {}", username, me, user_message),
+                None => format!("{}, {} {}", user.first_name.clone(), me, user_message),
+            },
+            None => format!("{} {}", me, user_message),
+        }
+    };
+    
+    api.execute(SendMessage::new(chat_id, answer)).await?;
 
     Ok(())
 }
 
 #[handler(command = "/m")]
 async fn handle_mem(api: &Api, command: Command) -> Result<(), ExecuteError> {
-    let message = command.get_message();
-    
-    println!("\n\n {:#?}\n\n", message);
-
-    let chat_id = message.get_chat_id();
-
-    let args = command.get_args();
+    let message  = command.get_message();
+    let chat_id  = message.get_chat_id();
+    let args     = command.get_args();
+    let mut memo = memory::Memo::new(chat_id);
 
     let answer = if args.is_empty() {
-        let reply = message.reply_to.clone();
-        log::info!("FORWARD {:?}", reply);
-        match reply {
-            Some(f) => match f.get_text() {
+        match message.reply_to.clone() {
+            None => memo.get(None).unwrap_or("not found".to_string()),
+            Some(reply) => match reply.get_text() {
+                None => "forward message not found".to_string(),
                 Some(text) => { 
-                    log::info!("F {:?}", f);
-                    log::info!("TEXT {:?}", text);
-                    let me = memory::Message {
-                        id: 0,
-                        message: text.data.clone(),
-                        // FIXME: replace Anonym whith real name or id
-                        author: "Anonymous".to_string(),
-                        created: time::get_time(),
-                    };
-
-                    match memory::save(chat_id, &me) {
-                        Ok(_) => format!("saved"),
+                    memo.set_message(text.data.clone());
+                    match memo.save() {
+                        Ok(_) => "saved".to_string(),
                         Err(err) => {
                             log::warn!("Cant save message: {}", err);
                             "[:||||:]".to_string()
                         }
                     }
-                }
-                None => "forward message not found".to_string()
+                },
             },
-            None => {
-                log::info!("f.get_text not found");
-                match memory::get_random(chat_id) {
-                    Ok(msg) => msg.message,
-                    Err(err) => {
-                        log::warn!("cant get random message: {}", err);
-                        "not found".to_string()
-                    }
-                }
-            }
         }
     } else {
-        let id: i64 = args[0].parse::<i64>().unwrap_or(0);
-        match memory::get(chat_id, id) {
-            Ok(m) => m.message,
-            Err(err) => {
-                log::warn!("cant get {} message: {}", id, err);
-                if id == 0 {
-                    match message.get_text() {
-                        Some(text) => {
-                            let me = memory::Message {
-                                id: 0,
-                                message: text.data.clone().replace("/m ", ""),
-                                // FIXME: replace Anonym whith real name or id
-                                author: "Anonymous".to_string(),
-                                created: time::get_time(),
-                            };
-                            match memory::save(chat_id, &me) {
-                                Ok(_) => format!("saved"),
-                                Err(err) => {
-                                    log::warn!("Cant save message: {}", err);
-                                    "[:||||:]".to_string()
-                                }
+        match args[0].parse::<i64>() {
+            Ok(id) => memo.get(Some(id)).unwrap_or("not found".to_string()),
+            Err(_) => {
+                match message.get_text() {
+                    None => "".to_string(),
+                    Some(text) => {
+                        memo.set_message(text.data.clone());
+                        match memo.save() {
+                            Ok(_) => "saved".to_string(),
+                            Err(err) => {
+                                log::warn!("Cant save message: {}", err);
+                                "[:||||:]".to_string()
                             }
-                        },
-                        None => "".to_string()
-                    }
-                } else {
-                    format!("{} not found", id)
+                        }
+                    },
                 }
             }
         }

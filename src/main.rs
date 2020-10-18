@@ -1,12 +1,12 @@
 use carapax::{
-    Api, 
-    Config, 
-    Dispatcher, 
-    ExecuteError, 
+    Api,
+    Config,
+    Dispatcher,
+    ExecuteError,
     HandlerResult,
-    handler, 
-    longpoll::LongPoll, 
-    methods::{ SendMessage, DeleteMessage}, 
+    handler,
+    longpoll::LongPoll,
+    methods::{ SendMessage, DeleteMessage},
     types::{Command, ParseMode},
 };
 use dotenv::dotenv;
@@ -55,7 +55,7 @@ async fn handle_me(api: &Api, command: Command) -> Result<(), ExecuteError> {
         Ok(_) => (),
         Err(why) => println!("{}", why),
     }
-    
+
     let answer = match message.reply_to.clone() {
         None => format!("{} {}", me, user_message),
         Some(reply) => match reply.get_user() {
@@ -66,7 +66,7 @@ async fn handle_me(api: &Api, command: Command) -> Result<(), ExecuteError> {
             None => format!("{} {}", me, user_message),
         }
     };
-    
+
     api.execute(SendMessage::new(chat_id, answer)).await?;
 
     Ok(())
@@ -84,7 +84,7 @@ async fn handle_mem(api: &Api, command: Command) -> Result<(), ExecuteError> {
             None => memo.get(None).unwrap_or("not found".to_string()),
             Some(reply) => match reply.get_text() {
                 None => "forward message not found".to_string(),
-                Some(text) => { 
+                Some(text) => {
                     memo.set_message(text.data.clone());
                     match memo.save() {
                         Ok(_) => "saved".to_string(),
@@ -134,12 +134,12 @@ async fn handle_stop(api: &Api, command: Command) -> Result<(), ExecuteError> {
 #[handler(command = "/it")]
 async fn handle_ithappens(api: &Api, command: Command) -> Result<(), ExecuteError> {
     let chat_id = command.get_message().get_chat_id();
-    
+
     let answer = match sources::ithappens() {
         Ok(body) => body,
         Err(_) => "not found".to_string(),
     };
-    
+
     api.execute(SendMessage::new(chat_id, answer)).await?;
     Ok(())
 }
@@ -180,7 +180,7 @@ async fn handle_corona(api: &Api, command: Command) -> Result<(), ExecuteError> 
                             log::error!("Cat't parse top data from api: {}", why);
                             format!("Something went wrong with api")
                         },
-                    } 
+                    }
                 } else {
                     match corona::top("cases".to_string()) {
                         Ok(c) => (c),
@@ -199,7 +199,7 @@ async fn handle_corona(api: &Api, command: Command) -> Result<(), ExecuteError> 
             }
         }
     };
-    
+
     api.execute(SendMessage::new(chat_id, answer)
         .parse_mode(ParseMode::MarkdownV2)
     ).await?;
@@ -230,6 +230,21 @@ async fn handle_bashorg(api: &Api, command: Command) -> Result<(), ExecuteError>
 }
 
 
+#[handler(command = "/dtp")]
+async fn handle_dtp(api: &Api, command: Command) -> Result<(), ExecuteError> {
+    let chat_id = command.get_message().get_chat_id();
+
+    let answer = match sources::dtp() {
+        Ok(body) => body,
+        Err(_) => "not found".to_string(),
+    };
+
+    api.execute(SendMessage::new(chat_id, answer)).await?;
+
+    Ok(())
+}
+
+
 #[handler(command = "/h")]
 async fn handle_help(api: &Api, command: Command) -> Result<(), ExecuteError> {
     let chat_id = command.get_message().get_chat_id();
@@ -249,7 +264,7 @@ async fn handle_help(api: &Api, command: Command) -> Result<(), ExecuteError> {
 /corona top [help] - top 5 by new cases";
 
     api.execute(SendMessage::new(chat_id, help_msg)).await?;
-    
+
     Ok(())
 }
 
@@ -272,6 +287,7 @@ async fn main() {
     dispatcher.add_handler(handle_mem);
     dispatcher.add_handler(handle_me);
     dispatcher.add_handler(handle_help);
+    dispatcher.add_handler(handle_dtp);
 
     LongPoll::new(api, dispatcher).run().await;
 }

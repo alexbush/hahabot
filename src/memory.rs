@@ -17,10 +17,10 @@ pub fn create_table(chat_id: i64) -> Result<()> {
     log::info!("create table");
     let query = format!(
         "CREATE TABLE IF NOT EXISTS `{}` (
-            id      integer, 
-            message text, 
-            author  varchar, 
-            created datetime, 
+            id      integer,
+            message text,
+            author  varchar,
+            created datetime,
             PRIMARY KEY (id))",
         table
     );
@@ -29,7 +29,7 @@ pub fn create_table(chat_id: i64) -> Result<()> {
         Ok(_) => {
             let index = format!(
                 "CREATE UNIQUE INDEX `message_{}` ON `{}` (message)", table, table);
-            
+
             match db.execute( index.as_str(), params![]) {
                 Ok(_) => Ok(()),
                 Err(why) => Err(why)
@@ -79,7 +79,7 @@ impl Memo {
     pub fn save(self) -> Result<()> {
         let db = Connection::open(&PATH)?;
 
-        let query = format!("INSERT INTO `{}` (message, author, created) 
+        let query = format!("INSERT INTO `{}` (message, author, created)
                 VALUES(?, 'Anonymous', datetime('now'))",
                 self.table,
         );

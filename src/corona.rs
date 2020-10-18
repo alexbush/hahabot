@@ -16,10 +16,10 @@ impl Api {
     }
 
     fn countries(&self, sort_by: String, y: bool) -> Result<Vec<Country>, Box<dyn Error>> {
-        Ok(reqwest::get(&format!("{}/v2/countries?sort={}&yesterday={}", 
+        Ok(reqwest::get(&format!("{}/v2/countries?sort={}&yesterday={}",
                     &self.url, sort_by, y))?.json()?)
     }
-    
+
     fn country(&self, country: String) -> Result<Country, Box<dyn Error>> {
         let u = format!("{}/v2/countries/{}", &self.url, country);
         Ok(reqwest::get(&u)?.json()?)
@@ -94,7 +94,7 @@ pub fn latest() -> Result<String, Box<dyn Error>> {
 cases:     {} [+{}]
 yesterday: {}
 
-deaths:    {} [+{}] 
+deaths:    {} [+{}]
 yesterday: {}
 
 recovered: {}
@@ -104,15 +104,15 @@ critical:  {}
 affected countries: {}
 --
 {}```",
-            c.cases, 
-            c.today_cases, 
+            c.cases,
+            c.today_cases,
             y.cases,
-            c.deaths, 
-            c.today_deaths, 
+            c.deaths,
+            c.today_deaths,
             y.deaths,
-            c.recovered, 
-            c.active, 
-            c.critical, 
+            c.recovered,
+            c.active,
+            c.critical,
             c.affected_countries,
             dt.format("%Y-%m-%d %H:%M:%S").to_string()))
 }
@@ -124,7 +124,7 @@ pub fn latest_country(country: &String) -> Result<String, Box<dyn Error>> {
     if c.updated > 0 {
         dt = Utc.timestamp(c.updated / 1000, 0);
     }
-    
+
     Ok(format!("```
 Country:   {}
 cases:     {} [+{}]
@@ -133,8 +133,8 @@ recovered: {}
 active:    {}
 critical:  {}
 --
-{}```", 
-        c.country, c.cases, c.today_cases, 
+{}```",
+        c.country, c.cases, c.today_cases,
         c.deaths, c.today_deaths, c.recovered,
         c.active, c.critical, dt.format("%Y-%m-%d %H:%M:%S").to_string()))
 }
@@ -142,7 +142,7 @@ critical:  {}
 
 pub fn top(by: String) -> Result<String, Box<dyn Error>> {
     let mut result: String = "".to_string();
-    
+
     if by == "help" {
         result = format!("Available sort values: cases, todayCases, deaths, todayDeaths");
     } else {
@@ -152,7 +152,7 @@ pub fn top(by: String) -> Result<String, Box<dyn Error>> {
 
         let top_5 = all[..5].to_vec();
         for a in top_5 {
-            result.push_str(&format!("{}: c: {} [+{}], d: {} [+{}]\n", 
+            result.push_str(&format!("{}: c: {} [+{}], d: {} [+{}]\n",
                     a.country, a.cases, a.today_cases, a.deaths, a.today_deaths));
         }
 

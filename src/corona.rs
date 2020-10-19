@@ -39,9 +39,9 @@ struct Latest {
     active: i64,
     critical: i64,
     #[serde(rename = "casesPerOneMillion")]
-    cases_per_one_million: i64,
+    cases_per_one_million: Option<f64>,
     #[serde(rename = "deathsPerOneMillion")]
-    deaths_per_one_million: i64,
+    deaths_per_one_million: Option<f64>,
     tests: i64,
     #[serde(rename = "testsPerOneMillion")]
     tests_per_one_million: f64,

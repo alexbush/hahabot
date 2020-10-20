@@ -17,7 +17,7 @@ impl Api {
     }
 
     fn countries(&self, sort_by: String, y: bool) -> Result<Vec<Country>, Box<dyn Error>> {
-        Ok(reqwest::get(&format!("{}/v3/covid-19/countries?sort={}&yesterday={}", 
+        Ok(reqwest::get(&format!("{}/v3/covid-19/countries?sort={}&yesterday={}",
                     &self.url, sort_by, y))?.json()?)
     }
 
@@ -114,7 +114,7 @@ affected countries: {}
             c.active as f64 / c.population as f64 * 100.0,
             c.population,
             c.cases,
-            c.today_cases, 
+            c.today_cases,
             y.cases,
             c.deaths,
             c.today_deaths,
@@ -144,9 +144,9 @@ recovered: {}
 active:    {}
 critical:  {}
 --
-{}```", 
+{}```",
         c.active as f64 / c.population as f64 * 100.0,
-        c.country, c.population, c.cases, c.today_cases, 
+        c.country, c.population, c.cases, c.today_cases,
         c.deaths, c.today_deaths, c.recovered,
         c.active, c.critical, dt.format("%Y-%m-%d %H:%M:%S").to_string()))
 }

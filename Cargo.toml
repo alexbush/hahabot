@@ -11,7 +11,7 @@ log = "*"
 reqwest = "0.9.11"
 select = "*"
 tokio = { version = "0.2", features = ["macros"] }
-carapax = "0.7.0"
+carapax = "0.8.0"
 rusqlite = "0.21.0"
 time = "0.1.0"
 htmlescape = "0.3.1"

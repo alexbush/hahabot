@@ -84,7 +84,7 @@ impl fmt::Display for Covid {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let country = match &self.country {
             Some(c) => c.clone(),
-            None => "World".to_string()
+            None    => "World".to_string()
         };
         write!(f, "```
 Country:   {}
@@ -113,16 +113,13 @@ critical:  {}
     }
 }
 
-pub fn latest() -> Result<String, Box<dyn Error>> {
-    let covid = Api::new().all(false)?;
+pub fn latest(country: Option<String>) -> Result<String, Box<dyn Error>> {
+    let covid = match country {
+        Some(c) => Api::new().country(c)?,
+        None    => Api::new().all(false)?,
+    };
     Ok(format!("{}", covid))
 }
-
-pub fn latest_country(country: &String) -> Result<String, Box<dyn Error>> {
-    let covid = Api::new().country(country.to_string())?;
-    Ok(format!("{}", covid))
-}
-
 
 pub fn top(by: String) -> Result<String, Box<dyn Error>> {
     let mut result: String = "".to_string();
@@ -138,7 +135,7 @@ pub fn top(by: String) -> Result<String, Box<dyn Error>> {
         for a in top_5 {
             let country = match &a.country {
                 Some(c) => c.clone(),
-                None => "".to_string(),
+                None    => "".to_string(),
             };
             result.push_str(&format!("{}: c: {} [+{}], d: {} [+{}]\n", 
                     country, a.cases, a.today_cases, a.deaths, a.today_deaths));

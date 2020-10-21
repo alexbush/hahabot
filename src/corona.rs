@@ -21,6 +21,9 @@ impl Api {
         let u = format!("{}/v3/covid-19/countries/{}?strict=true", &self.url, country);
         Ok(reqwest::get(&u)?.json()?)
     }
+    fn vaccine(&self) -> Result<Vaccine, Box<dyn Error>> {
+        Ok( reqwest::get(&format!("{}/v3/covid-19/vaccine", &self.url))?.json()?)
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -145,4 +148,59 @@ pub fn top(by: String) -> Result<String, Box<dyn Error>> {
     }
 
     Ok(result)
+}
+
+
+#[derive(Default, Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Vaccine {
+    source:            String,
+    total_candidates:  String,
+    phases:            Vec<Phase>,
+    data:              Vec<VaccineData>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Phase {
+    phase:       String,
+    candidates:  String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct VaccineData {
+    candidate:     String,
+    mechanism:     String,
+    sponsors:      Vec<String>,
+    details:       String,
+    trial_phase:   String,
+    institutions:  Vec<String>,
+}
+
+impl fmt::Display for Vaccine {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut phase: String = "".to_string();
+        for p in &self.phases {
+            phase.push_str(&format!("{:15} : {}\n", p.phase, p.candidates));
+        }
+
+        write!(f, "{}
+```
+total:   {}
+
+phases:  
+{}
+```", 
+        self.source
+            .replace("-", "\\-")
+            .replace(".", "\\."),
+        self.total_candidates,
+        phase.replace("-", "\\-"))
+    }
+}
+
+pub fn vaccine() -> Result<String, Box<dyn Error>> {
+    let v = Api::new().vaccine()?;
+    Ok(format!("{}", v))
 }

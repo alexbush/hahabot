@@ -161,7 +161,7 @@ async fn handle_anekdot(api: &Api, command: Command) -> Result<(), ExecuteError>
 #[handler(command = "/corona")]
 async fn handle_corona(api: &Api, command: Command) -> Result<(), ExecuteError> {
     let chat_id = command.get_message().get_chat_id();
-    let args = command.get_args();
+    let args    = command.get_args();
 
     let answer: String = if args.is_empty() {
         match corona::latest(None) {
@@ -173,9 +173,16 @@ async fn handle_corona(api: &Api, command: Command) -> Result<(), ExecuteError> 
         }
     } else {
         match args[0].as_str() {
+            "vaccine" => match corona::vaccine() {
+                Ok(v)    => v,
+                Err(why) => {
+                    log::error!("Cat't parse top data from api: {}", why);
+                    format!("Something went wrong with api")
+                },
+            },
             "top" => if args.len() > 1 {
                     match corona::top(args[1].to_string()) {
-                        Ok(c) => (c),
+                        Ok(c)    => c,
                         Err(why) => {
                             log::error!("Cat't parse top data from api: {}", why);
                             format!("Something went wrong with api")
@@ -183,7 +190,7 @@ async fn handle_corona(api: &Api, command: Command) -> Result<(), ExecuteError> 
                     }
                 } else {
                     match corona::top("cases".to_string()) {
-                        Ok(c) => (c),
+                        Ok(c)    => c,
                         Err(why) => {
                             log::error!("Cat't parse top data from api: {}", why);
                             format!("Something went wrong with api")
@@ -191,7 +198,7 @@ async fn handle_corona(api: &Api, command: Command) -> Result<(), ExecuteError> 
                     }
                 },
             _ => match corona::latest(Some(args[0].to_string())) {
-                Ok(c) => c,
+                Ok(c)    => c,
                 Err(why) => {
                     log::error!("Cat't parse all data from api: {}", why);
                     format!("Something went wrong with api or can't find this country")
@@ -260,6 +267,7 @@ async fn handle_help(api: &Api, command: Command) -> Result<(), ExecuteError> {
 /b id - запись с bash.im
 /a - анекдот
 /corona - covid stat
+/corona vaccine - vaccine info
 /corona [country] - covid stat by country
 /corona top [help] - top 5 by new cases";
 

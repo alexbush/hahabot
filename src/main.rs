@@ -266,6 +266,7 @@ async fn handle_help(api: &Api, command: Command) -> Result<(), ExecuteError> {
 /b - рaндомная запись с bash.im
 /b id - запись с bash.im
 /a - анекдот
+/dtp - ДТП по РФ
 /corona - covid stat
 /corona vaccine - vaccine info
 /corona [country] - covid stat by country

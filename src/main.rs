@@ -81,7 +81,14 @@ async fn handle_mem(api: &Api, command: Command) -> Result<(), ExecuteError> {
 
     let answer = if args.is_empty() {
         match message.reply_to.clone() {
-            None => memo.get(None).unwrap_or("not found".to_string()),
+            None => {
+                match api.execute(DeleteMessage::new(chat_id, message.id)).await {
+                    Ok(_) => (),
+                    Err(why) => println!("{}", why),
+                }
+
+                memo.get(None).unwrap_or("not found".to_string())
+            },
             Some(reply) => match reply.get_text() {
                 None => "forward message not found".to_string(),
                 Some(text) => {
@@ -116,7 +123,7 @@ async fn handle_mem(api: &Api, command: Command) -> Result<(), ExecuteError> {
             }
         }
     };
-
+    
     api.execute(SendMessage::new(chat_id, answer)).await?;
     Ok(())
 }

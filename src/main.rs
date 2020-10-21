@@ -169,49 +169,13 @@ async fn handle_anekdot(api: &Api, command: Command) -> Result<(), ExecuteError>
 async fn handle_corona(api: &Api, command: Command) -> Result<(), ExecuteError> {
     let chat_id = command.get_message().get_chat_id();
     let args    = command.get_args();
-
-    let answer: String = if args.is_empty() {
-        match corona::latest(None) {
-            Ok(c) => c,
-            Err(why) => {
-                log::error!("Cat't parse all data from api: {}", why);
-                format!("Something went wrong with api")
-            }
-        }
-    } else {
-        match args[0].as_str() {
-            "vaccine" => match corona::vaccine() {
-                Ok(v)    => v,
-                Err(why) => {
-                    log::error!("Cat't parse top data from api: {}", why);
-                    format!("Something went wrong with api")
-                },
-            },
-            "top" => if args.len() > 1 {
-                    match corona::top(args[1].to_string()) {
-                        Ok(c)    => c,
-                        Err(why) => {
-                            log::error!("Cat't parse top data from api: {}", why);
-                            format!("Something went wrong with api")
-                        },
-                    }
-                } else {
-                    match corona::top("cases".to_string()) {
-                        Ok(c)    => c,
-                        Err(why) => {
-                            log::error!("Cat't parse top data from api: {}", why);
-                            format!("Something went wrong with api")
-                        },
-                    }
-                },
-            _ => match corona::latest(Some(args[0].to_string())) {
-                Ok(c)    => c,
-                Err(why) => {
-                    log::error!("Cat't parse all data from api: {}", why);
-                    format!("Something went wrong with api or can't find this country")
-                }
-            }
-        }
+    let corona  = corona::Corona::new(args.to_vec());
+    let answer: String = match corona.get() {
+        Ok(a) => a,
+        Err(why) => {
+            log::error!("Can't parse all data from api: {}", why);
+            format!("Something went wrong with api")
+        },
     };
 
     api.execute(SendMessage::new(chat_id, answer)

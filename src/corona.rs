@@ -56,7 +56,7 @@ struct Covid {
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Deserialize)]
-pub struct CountryInfo {
+struct CountryInfo {
     #[serde(rename = "_id")]
     id:    Option<i64>,
     iso2:  Option<String>,
@@ -116,7 +116,7 @@ critical:  {}
     }
 }
 
-pub fn latest(country: Option<String>) -> Result<String, Box<dyn Error>> {
+fn latest(country: Option<String>) -> Result<String, Box<dyn Error>> {
     let covid = match country {
         Some(c) => Api::new().country(c)?,
         None    => Api::new().all(false)?,
@@ -124,7 +124,7 @@ pub fn latest(country: Option<String>) -> Result<String, Box<dyn Error>> {
     Ok(format!("{}", covid))
 }
 
-pub fn top(by: String) -> Result<String, Box<dyn Error>> {
+fn top(by: String) -> Result<String, Box<dyn Error>> {
     let mut result: String = "".to_string();
 
     if by == "help" {
@@ -200,7 +200,36 @@ phases:
     }
 }
 
-pub fn vaccine() -> Result<String, Box<dyn Error>> {
+fn vaccine() -> Result<String, Box<dyn Error>> {
     let v = Api::new().vaccine()?;
     Ok(format!("{}", v))
+}
+
+#[derive(Debug)]
+pub struct Corona {
+    pub args: Vec<String>
+}
+
+impl Corona {
+    pub fn new(args: Vec<String>) -> Self {
+        Self { args: args }
+    }
+    pub fn get(&self) -> Result<String, Box<dyn Error>> {
+        if self.args.is_empty() {
+            latest(None)        
+        } else {
+            match self.args[0].as_str() {
+                "vaccine" => vaccine(),
+                "top"     => {
+                    let filter: String = if self.args.len() > 1 {
+                        self.args[1].to_string()
+                    } else {
+                        "cases".to_string()
+                    };
+                    top(filter) 
+                },
+                _ => latest(Some(self.args[0].to_string()))
+            }
+        }
+    }
 }

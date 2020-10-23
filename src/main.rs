@@ -173,8 +173,8 @@ async fn handle_corona(api: &Api, command: Command) -> Result<(), ExecuteError> 
     let answer: String = match corona.get() {
         Ok(a) => a,
         Err(why) => {
-            log::error!("Can't parse all data from api: {}", why);
-            format!("Something went wrong with api")
+            log::error!("Error while getting covid info: {}", why);
+            format!("Meow, I have paws ^_^")
         },
     };
 

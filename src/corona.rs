@@ -161,7 +161,7 @@ fn top(by: String) -> Result<String, Box<dyn Error>> {
                 Some(c) => c.clone(),
                 None    => "".to_string(),
             };
-            result.push_str(&format!("{}: c: {} [+{}], d: {} [+{}]\n", 
+            result.push_str(&format!("{}: c: {} [+{}], d: {} [+{}]\n",
                     country, a.cases, a.today_cases, a.deaths, a.today_deaths));
         }
 
@@ -244,7 +244,7 @@ impl Corona {
                     } else {
                         "cases".to_string()
                     };
-                    top(filter) 
+                    top(filter)
                 },
                 _ => latest(Some(self.args[0].to_string()))
             }

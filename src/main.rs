@@ -123,7 +123,7 @@ async fn handle_mem(api: &Api, command: Command) -> Result<(), ExecuteError> {
             }
         }
     };
-    
+
     api.execute(SendMessage::new(chat_id, answer)).await?;
     Ok(())
 }

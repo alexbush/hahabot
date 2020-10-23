@@ -13,14 +13,15 @@ impl Api {
     }
 
     fn countries(&self, sort_by: String, y: bool) -> Result<Vec<Covid>, Box<dyn Error>> {
-        Ok(reqwest::get(&format!("{}/v3/covid-19/countries?sort={}&yesterday={}", 
+        Ok(reqwest::get(&format!("{}/v3/covid-19/countries?sort={}&yesterday={}",
                     &self.url, sort_by, y))?.json()?)
     }
-    
+
     fn country(&self, country: String) -> Result<Covid, Box<dyn Error>> {
         let u = format!("{}/v3/covid-19/countries/{}?strict=true", &self.url, country);
         Ok(reqwest::get(&u)?.json()?)
     }
+
     fn vaccine(&self) -> Result<Vaccine, Box<dyn Error>> {
         Ok( reqwest::get(&format!("{}/v3/covid-19/vaccine", &self.url))?.json()?)
     }
@@ -101,25 +102,45 @@ active:    {}
 recovered: {}
 critical:  {}
 --
-{}```", 
-        country, 
-        self.population, 
+{}```",
+        country,
+        self.population,
         self.outbreak(),
-        self.cases, 
-        self.today_cases, 
-        self.deaths, 
-        self.today_deaths, 
-        self.active, 
+        self.cases,
+        self.today_cases,
+        self.deaths,
+        self.today_deaths,
+        self.active,
         self.recovered,
-        self.critical, 
+        self.critical,
         self.dt().format("%Y-%m-%d %H:%M:%S").to_string())
     }
 }
 
-fn latest(country: Option<String>) -> Result<String, Box<dyn Error>> {
-    let covid = match country {
-        Some(c) => Api::new().country(c)?,
-        None    => Api::new().all(false)?,
+fn latest(by_country: Option<String>) -> Result<String, Box<dyn Error>> {
+    let all = Api::new()
+        .countries("cases".to_string(), false)?
+        .to_vec()
+        .into_iter()
+        .map(|x| x.country.unwrap())
+        .collect::<Vec<_>>();
+
+    let covid = match by_country {
+        Some(c) => {
+            let result = fuzzy_find(&c, all);
+            match result.len() {
+                0 => { return Err("Can't find any country".into()) },
+                1 => Api::new().country(result[0].to_string())?,
+                _ => {
+                    let mut r = String::from("Maybe:\n");
+                    for found in result {
+                        r.push_str(&format!(" {}\n", found));
+                    }
+                    return Ok(r);
+                }
+            }
+        },
+        None => Api::new().all(false)?,
     };
     Ok(format!("{}", covid))
 }
@@ -140,7 +161,7 @@ fn top(by: String) -> Result<String, Box<dyn Error>> {
                 Some(c) => c.clone(),
                 None    => "".to_string(),
             };
-            result.push_str(&format!("{}: c: {} [+{}], d: {} [+{}]\n", 
+            result.push_str(&format!("{}: c: {} [+{}], d: {} [+{}]\n",
                     country, a.cases, a.today_cases, a.deaths, a.today_deaths));
         }
 
@@ -189,12 +210,10 @@ impl fmt::Display for Vaccine {
 ```
 total:   {}
 
-phases:  
+phases:
 {}
-```", 
-        self.source
-            .replace("-", "\\-")
-            .replace(".", "\\."),
+```",
+        self.source.replace("-", "\\-").replace(".", "\\."),
         self.total_candidates,
         phase.replace("-", "\\-"))
     }
@@ -211,12 +230,11 @@ pub struct Corona {
 }
 
 impl Corona {
-    pub fn new(args: Vec<String>) -> Self {
-        Self { args: args }
-    }
+    pub fn new(args: Vec<String>) -> Self { Self { args: args } }
+
     pub fn get(&self) -> Result<String, Box<dyn Error>> {
         if self.args.is_empty() {
-            latest(None)        
+            latest(None)
         } else {
             match self.args[0].as_str() {
                 "vaccine" => vaccine(),
@@ -226,10 +244,71 @@ impl Corona {
                     } else {
                         "cases".to_string()
                     };
-                    top(filter) 
+                    top(filter)
                 },
                 _ => latest(Some(self.args[0].to_string()))
             }
         }
     }
 }
+
+
+fn fuzzy_find(pattern: &str, countries: Vec<String>) -> Vec<String> {
+    let mut result = Vec::<String>::new();
+
+    for country in countries.iter() {
+        if pattern.clone().to_lowercase() == country.to_lowercase() {
+            return [pattern.to_string()].to_vec();
+        }
+
+        match distance(&pattern.to_lowercase(), &country.to_lowercase()) {
+            1 => result.push(country.to_string()),
+            _ => (),
+        }
+    }
+
+    result
+}
+
+fn distance(word1: &str, word2: &str) -> usize {
+    let word1_vec: Vec<_> = word1.chars().collect();
+    let word2_vec: Vec<_> = word2.chars().collect();
+
+    let word1_length = word1_vec.len() + 1;
+    let word2_length = word2_vec.len() + 1;
+
+    let mut matrix = vec![vec![0]];
+
+    for i in 1..word1_length { matrix[0].push(i); }
+    for j in 1..word2_length { matrix.push(vec![j]); }
+
+    for j in 1..word2_length {
+        for i in 1..word1_length {
+            let x: usize = if word1_vec[i-1] == word2_vec[j-1] {
+                matrix[j-1][i-1]
+            } else {
+                1 + std::cmp::min(
+                        std::cmp::min(
+                            matrix[j][i-1],
+                            matrix[j-1][i]
+                        ), matrix[j-1][i-1])
+            };
+            matrix[j].push(x);
+        }
+    }
+    matrix[word2_length-1][word1_length-1]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn levenshtein() {
+        assert_eq!( distance("germania", "germany"), 2);
+        assert_eq!( distance("us", "usa"), 1);
+        assert_eq!( distance("rusia", "russia"), 1);
+        assert_eq!( distance("chechia", "czechia"), 1);
+    }
+}
+

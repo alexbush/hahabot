@@ -3,6 +3,20 @@ use std::io::prelude::*;
 use htmlescape::decode_html;
 use select::predicate::{ Class, Name };
 use select::document::Document;
+use chrono::{ Utc, Datelike };
+
+// cache
+struct Dtp {
+    last_update: u32,
+    header:      String,
+    body:        String
+}
+
+static mut DTP_INFO: Dtp = Dtp {
+    last_update: 0,
+    header:      String::new(),
+    body:        String::new()
+};
 
 pub fn ithappens() -> Result<String, Box<dyn Error>> {
     let mut res = reqwest::get("https://ithappens.me/random")?;
@@ -70,6 +84,19 @@ pub fn bash(id: u64) -> Result<String, Box<dyn Error>> {
 }
 
 pub fn dtp() -> Result<String, Box<dyn Error>> {
+    let now = Utc::now();
+
+    unsafe {
+        if DTP_INFO.last_update != 0 &&
+            (DTP_INFO.last_update == now.day() ||
+            now.weekday().number_from_monday() > 5)
+        {
+            let mut result: String = DTP_INFO.header.clone();
+            result.push_str(&format!("\n{}", DTP_INFO.body.as_str()));
+            return Ok(result);
+        }
+    }
+
     let mut res = reqwest::get("https://xn--90adear.xn--p1ai")?;
     let mut buffer = String::new();
 
@@ -84,17 +111,32 @@ pub fn dtp() -> Result<String, Box<dyn Error>> {
         .unwrap();
 
     let mut result = String::new();
-    result.push_str(&format!("{}\n", quote.find(Name("th")).next().unwrap().text().trim()));
+    let mut header = String::new();
+    let mut body = String::new();
+
+    header.push_str(&format!("{}\n", quote.find(Name("th")).next().unwrap().text().trim()));
+
+    unsafe {
+        DTP_INFO.last_update = now.day();
+        DTP_INFO.header = header.clone();
+    }
 
     let mut i = 0;
     quote.find(Name("td")).for_each(|x| {
         if i & 1 == 0 {
-            result.push_str(&format!("{}: ", x.text()));
+            body.push_str(&format!("{}: ", x.text()));
         } else {
-            result.push_str(&format!("{}\n", x.text()));
+            body.push_str(&format!("{}\n", x.text()));
         }
         i = i + 1;
     });
+
+    unsafe {
+        DTP_INFO.body = body.clone();
+    }
+
+    result.push_str(&format!("{}\n", header.as_str()));
+    result.push_str(&format!("{}", body.as_str()));
 
     Ok(result)
 }

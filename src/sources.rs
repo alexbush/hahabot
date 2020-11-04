@@ -4,6 +4,7 @@ use htmlescape::decode_html;
 use select::predicate::{ Class, Name };
 use select::document::Document;
 use chrono::{ Utc, Datelike };
+use reqwest::get;
 
 // cache
 struct Dtp {
@@ -19,7 +20,7 @@ static mut DTP_INFO: Dtp = Dtp {
 };
 
 pub fn ithappens() -> Result<String, Box<dyn Error>> {
-    let mut res = reqwest::get("https://ithappens.me/random")?;
+    let mut res = get("https://ithappens.me/random")?;
     let mut buffer = String::new();
     res.read_to_string(&mut buffer)?;
     let html: &str = &buffer;
@@ -34,7 +35,7 @@ pub fn ithappens() -> Result<String, Box<dyn Error>> {
 
 
 pub fn anekdot() -> Result<String, Box<dyn Error>> {
-    let mut res = reqwest::get("https://www.anekdot.ru/random/anekdot")?;
+    let mut res = get("https://www.anekdot.ru/random/anekdot")?;
     let mut buffer = String::new();
     res.read_to_string(&mut buffer)?;
     let html: &str = &buffer;
@@ -54,9 +55,9 @@ pub fn bash(id: u64) -> Result<String, Box<dyn Error>> {
     let mut res;
     if id != 0 {
         let url = format!("https://bash.im/quote/{}", id);
-        res = reqwest::get(&url)?;
+        res = get(&url)?;
     } else {
-        res = reqwest::get("https://bash.im/random")?;
+        res = get("https://bash.im/random")?;
     }
     let mut buffer = String::new();
     res.read_to_string(&mut buffer)?;
@@ -97,7 +98,7 @@ pub fn dtp() -> Result<String, Box<dyn Error>> {
         }
     }
 
-    let mut res = reqwest::get("https://xn--90adear.xn--p1ai")?;
+    let mut res = get("https://xn--90adear.xn--p1ai")?;
     let mut buffer = String::new();
 
     res.read_to_string(&mut buffer)?;

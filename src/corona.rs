@@ -1,6 +1,7 @@
 use std::error::Error;
 use serde::Deserialize;
 use chrono::prelude::*;
+use std::collections::HashMap;
 use std::fmt;
 
 struct Api { url: String }
@@ -255,15 +256,24 @@ impl Corona {
 
 fn fuzzy_find(pattern: &str, countries: Vec<String>) -> Vec<String> {
     let mut result = Vec::<String>::new();
+    let mut hash = HashMap::new();
+    let mut dist_min: usize = 5;
 
     for country in countries.iter() {
         if pattern.clone().to_lowercase() == country.to_lowercase() {
             return [pattern.to_string()].to_vec();
         }
 
-        match distance(&pattern.to_lowercase(), &country.to_lowercase()) {
-            1 => result.push(country.to_string()),
-            _ => (),
+        let dist = distance(&pattern.to_lowercase(), &country.to_lowercase());
+        hash.insert(country, dist);
+        if dist < dist_min {
+            dist_min = dist;
+        }
+    }
+
+    for (country, dist) in hash {
+        if dist == dist_min {
+            result.push(country.to_string());
         }
     }
 

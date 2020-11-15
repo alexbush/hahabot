@@ -90,7 +90,8 @@ pub fn dtp() -> Result<String, Box<dyn Error>> {
     unsafe {
         if DTP_INFO.last_update != 0 &&
             (DTP_INFO.last_update == now.day() ||
-            now.weekday().number_from_monday() > 5)
+            (now.weekday().number_from_monday() > 5 &&
+             DTP_INFO.last_update >= now.day() - (now.weekday().number_from_monday() - 5)))
         {
             let mut result: String = DTP_INFO.header.clone();
             result.push_str(&format!("\n{}", DTP_INFO.body.as_str()));

@@ -79,6 +79,15 @@ async fn handle_mem(api: &Api, command: Command) -> Result<(), ExecuteError> {
     let args     = command.get_args();
     let mut memo = memory::Memo::new(chat_id);
 
+    match message.get_text() {
+        None => return Ok(()),
+        Some(text) => {
+            if !text.data.starts_with("/m") {
+                return Ok(());
+            }
+        }
+    };
+
     let answer = if args.is_empty() {
         match message.reply_to.clone() {
             None => {

@@ -1,4 +1,3 @@
-RUST ?= latest
 DOCKER = docker
 DOCKER_UID = "$$(id -u)"
 DOCKER_GID = "$$(id -g)"

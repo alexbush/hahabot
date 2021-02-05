@@ -2,6 +2,7 @@ use std::error::Error;
 use serde::Deserialize;
 use chrono::prelude::*;
 use std::collections::HashMap;
+use reqwest::blocking::get;
 use std::fmt;
 
 struct Api { url: String }
@@ -10,21 +11,21 @@ impl Api {
     fn new() -> Self { Self { url: "https://disease.sh".to_string() } }
 
     fn all(&self, y: bool) -> Result<Covid, Box<dyn Error>> {
-        Ok(reqwest::get(&format!("{}/v3/covid-19/all?yesterday={}", &self.url, y))?.json()?)
+        Ok(get(&format!("{}/v3/covid-19/all?yesterday={}", &self.url, y))?.json()?)
     }
 
     fn countries(&self, sort_by: String, y: bool) -> Result<Vec<Covid>, Box<dyn Error>> {
-        Ok(reqwest::get(&format!("{}/v3/covid-19/countries?sort={}&yesterday={}",
+        Ok(get(&format!("{}/v3/covid-19/countries?sort={}&yesterday={}",
                     &self.url, sort_by, y))?.json()?)
     }
 
     fn country(&self, country: String) -> Result<Covid, Box<dyn Error>> {
         let u = format!("{}/v3/covid-19/countries/{}?strict=true", &self.url, country);
-        Ok(reqwest::get(&u)?.json()?)
+        Ok(get(&u)?.json()?)
     }
 
     fn vaccine(&self) -> Result<Vaccine, Box<dyn Error>> {
-        Ok( reqwest::get(&format!("{}/v3/covid-19/vaccine", &self.url))?.json()?)
+        Ok(get(&format!("{}/v3/covid-19/vaccine", &self.url))?.json()?)
     }
 }
 

@@ -4,7 +4,7 @@ use htmlescape::decode_html;
 use select::predicate::{ Class, Name };
 use select::document::Document;
 use chrono::{ Utc, Datelike };
-use reqwest::get;
+use reqwest::blocking::get;
 
 // cache
 struct Dtp {

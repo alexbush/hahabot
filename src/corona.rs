@@ -2,30 +2,30 @@ use std::error::Error;
 use serde::Deserialize;
 use chrono::prelude::*;
 use std::collections::HashMap;
-use reqwest::blocking::get;
+use reqwest::get;
 use std::fmt;
 
 struct Api { url: String }
 
 impl Api {
-    fn new() -> Self { Self { url: "https://disease.sh".to_string() } }
+    async fn new() -> Self { Self { url: "https://disease.sh".to_string() } }
 
-    fn all(&self, y: bool) -> Result<Covid, Box<dyn Error>> {
-        Ok(get(&format!("{}/v3/covid-19/all?yesterday={}", &self.url, y))?.json()?)
+    async fn all(&self, y: bool) -> Result<Covid, Box<dyn Error>> {
+        Ok(get(&format!("{}/v3/covid-19/all?yesterday={}", &self.url, y)).await?.json().await?)
     }
 
-    fn countries(&self, sort_by: String, y: bool) -> Result<Vec<Covid>, Box<dyn Error>> {
+    async fn countries(&self, sort_by: String, y: bool) -> Result<Vec<Covid>, Box<dyn Error>> {
         Ok(get(&format!("{}/v3/covid-19/countries?sort={}&yesterday={}",
-                    &self.url, sort_by, y))?.json()?)
+                    &self.url, sort_by, y)).await?.json().await?)
     }
 
-    fn country(&self, country: String) -> Result<Covid, Box<dyn Error>> {
+    async fn country(&self, country: String) -> Result<Covid, Box<dyn Error>> {
         let u = format!("{}/v3/covid-19/countries/{}?strict=true", &self.url, country);
-        Ok(get(&u)?.json()?)
+        Ok(get(&u).await?.json().await?)
     }
 
-    fn vaccine(&self) -> Result<Vaccine, Box<dyn Error>> {
-        Ok(get(&format!("{}/v3/covid-19/vaccine", &self.url))?.json()?)
+    async fn vaccine(&self) -> Result<Vaccine, Box<dyn Error>> {
+        Ok(get(&format!("{}/v3/covid-19/vaccine", &self.url)).await?.json().await?)
     }
 }
 
@@ -119,9 +119,11 @@ critical:  {}
     }
 }
 
-fn latest(by_country: Option<String>) -> Result<String, Box<dyn Error>> {
+async fn latest(by_country: Option<String>) -> Result<String, Box<dyn Error>> {
     let all = Api::new()
-        .countries("cases".to_string(), false)?
+        .await
+        .countries("cases".to_string(), false)
+        .await?
         .to_vec()
         .into_iter()
         .map(|x| x.country.unwrap())
@@ -132,7 +134,7 @@ fn latest(by_country: Option<String>) -> Result<String, Box<dyn Error>> {
             let result = fuzzy_find(&c, all);
             match result.len() {
                 0 => { return Err("Can't find any country".into()) },
-                1 => Api::new().country(result[0].to_string())?,
+                1 => Api::new().await.country(result[0].to_string()).await?,
                 _ => {
                     let mut r = String::from("Maybe:\n");
                     for found in result {
@@ -142,18 +144,18 @@ fn latest(by_country: Option<String>) -> Result<String, Box<dyn Error>> {
                 }
             }
         },
-        None => Api::new().all(false)?,
+        None => Api::new().await.all(false).await?,
     };
     Ok(format!("{}", covid))
 }
 
-fn top(by: String) -> Result<String, Box<dyn Error>> {
+async fn top(by: String) -> Result<String, Box<dyn Error>> {
     let mut result: String = "".to_string();
 
     if by == "help" {
         result = format!("Available sort values: cases, todayCases, deaths, todayDeaths");
     } else {
-        let all = Api::new().countries(by, false)?;
+        let all = Api::new().await.countries(by, false).await?;
 
         result.push_str("```\n");
 
@@ -221,8 +223,8 @@ phases:
     }
 }
 
-fn vaccine() -> Result<String, Box<dyn Error>> {
-    let v = Api::new().vaccine()?;
+async fn vaccine() -> Result<String, Box<dyn Error>> {
+    let v = Api::new().await.vaccine().await?;
     Ok(format!("{}", v))
 }
 
@@ -232,23 +234,23 @@ pub struct Corona {
 }
 
 impl Corona {
-    pub fn new(args: Vec<String>) -> Self { Self { args: args } }
+    pub async fn new(args: Vec<String>) -> Self { Self { args: args } }
 
-    pub fn get(&self) -> Result<String, Box<dyn Error>> {
+    pub async fn get(&self) -> Result<String, Box<dyn Error>> {
         if self.args.is_empty() {
-            latest(None)
+            latest(None).await
         } else {
             match self.args[0].as_str() {
-                "vaccine" => vaccine(),
+                "vaccine" => vaccine().await,
                 "top"     => {
                     let filter: String = if self.args.len() > 1 {
                         self.args[1].to_string()
                     } else {
                         "cases".to_string()
                     };
-                    top(filter)
+                    top(filter).await
                 },
-                _ => latest(Some(self.args[0].to_string()))
+                _ => latest(Some(self.args[0].to_string())).await
             }
         }
     }

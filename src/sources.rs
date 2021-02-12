@@ -1,10 +1,9 @@
 use std::error::Error;
-use std::io::prelude::*;
 use htmlescape::decode_html;
 use select::predicate::{ Class, Name };
 use select::document::Document;
 use chrono::{ Utc, Datelike };
-use reqwest::blocking::get;
+use reqwest::get;
 
 // cache
 struct Dtp {
@@ -19,11 +18,12 @@ static mut DTP_INFO: Dtp = Dtp {
     body:        String::new()
 };
 
-pub fn ithappens() -> Result<String, Box<dyn Error>> {
-    let mut res = get("https://ithappens.me/random")?;
-    let mut buffer = String::new();
-    res.read_to_string(&mut buffer)?;
-    let html: &str = &buffer;
+pub async fn ithappens() -> Result<String, Box<dyn Error>> {
+    let content = get("https://ithappens.me/random")
+        .await?
+        .text()
+        .await?;
+    let html: &str = &content;
     let document = Document::from(html);
     let quote = document
         .find(Class("text"))
@@ -34,11 +34,9 @@ pub fn ithappens() -> Result<String, Box<dyn Error>> {
 }
 
 
-pub fn anekdot() -> Result<String, Box<dyn Error>> {
-    let mut res = get("https://www.anekdot.ru/random/anekdot")?;
-    let mut buffer = String::new();
-    res.read_to_string(&mut buffer)?;
-    let html: &str = &buffer;
+pub async fn anekdot() -> Result<String, Box<dyn Error>> {
+    let content = get("https://www.anekdot.ru/random/anekdot").await?.text().await?;
+    let html: &str = &content;
     let document = Document::from(html);
     let mut quote = document
         .find(Class("text"))
@@ -51,17 +49,15 @@ pub fn anekdot() -> Result<String, Box<dyn Error>> {
 }
 
 
-pub fn bash(id: u64) -> Result<String, Box<dyn Error>> {
-    let mut res;
+pub async fn bash(id: u64) -> Result<String, Box<dyn Error>> {
+    let url;
     if id != 0 {
-        let url = format!("https://bash.im/quote/{}", id);
-        res = get(&url)?;
+        url = format!("https://bash.im/quote/{}", id)
     } else {
-        res = get("https://bash.im/random")?;
-    }
-    let mut buffer = String::new();
-    res.read_to_string(&mut buffer)?;
-    let html: &str = &buffer;
+        url = format!("https://bash.im/random")
+    };
+    let content = get(&url).await?.text().await?;
+    let html: &str = &content;
     let document = Document::from(html);
 
     let quote_id = document
@@ -84,7 +80,7 @@ pub fn bash(id: u64) -> Result<String, Box<dyn Error>> {
     Ok(format!("{}\n{}", quote_id, quote))
 }
 
-pub fn dtp() -> Result<String, Box<dyn Error>> {
+pub async fn dtp() -> Result<String, Box<dyn Error>> {
     let now = Utc::now();
 
     unsafe {
@@ -99,12 +95,9 @@ pub fn dtp() -> Result<String, Box<dyn Error>> {
         }
     }
 
-    let mut res = get("https://xn--90adear.xn--p1ai")?;
-    let mut buffer = String::new();
+    let content = get("https://xn--90adear.xn--p1ai").await?.text().await?;
 
-    res.read_to_string(&mut buffer)?;
-
-    let html: &str = &buffer;
+    let html: &str = &content;
     let document = Document::from(html);
 
     let quote = document

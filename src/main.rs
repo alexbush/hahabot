@@ -13,25 +13,32 @@ use dotenv::dotenv;
 use env_logger;
 use log;
 use std::env;
+use tokio::sync::Mutex;
+use std::sync::Arc;
 
 mod corona;
 mod memory;
 mod sources;
 
+struct Context {
+    api: Api,
+    count: Arc<Mutex<i32>>,
+}
+
 #[handler(command = "/start")]
-async fn handle_start(api: &Api, command: Command) -> Result<HandlerResult, ExecuteError> {
+async fn handle_start(context: &Context, command: Command) -> Result<HandlerResult, ExecuteError> {
     let chat_id = command.get_message().get_chat_id();
     match memory::create_table(chat_id) {
         Ok(_) => log::info!("table {} created", chat_id),
         Err(why) => log::warn!("can't create table {}: {}", chat_id, why)
     }
     let method = SendMessage::new(chat_id, "Всем чьмоки в этом чате!");
-    api.execute(method).await?;
+    context.api.execute(method).await?;
     Ok(HandlerResult::Stop)
 }
 
 #[handler(command = "/me")]
-async fn handle_me(api: &Api, command: Command) -> Result<(), ExecuteError> {
+async fn handle_me(context: &Context, command: Command) -> Result<(), ExecuteError> {
     let message = command.get_message();
     let chat_id = message.get_chat_id();
 
@@ -51,7 +58,7 @@ async fn handle_me(api: &Api, command: Command) -> Result<(), ExecuteError> {
         None => "something".to_string(),
     };
 
-    match api.execute(DeleteMessage::new(chat_id, message.id)).await {
+    match context.api.execute(DeleteMessage::new(chat_id, message.id)).await {
         Ok(_) => (),
         Err(why) => println!("{}", why),
     }
@@ -67,13 +74,13 @@ async fn handle_me(api: &Api, command: Command) -> Result<(), ExecuteError> {
         }
     };
 
-    api.execute(SendMessage::new(chat_id, answer)).await?;
+    context.api.execute(SendMessage::new(chat_id, answer)).await?;
 
     Ok(())
 }
 
 #[handler(command = "/m")]
-async fn handle_mem(api: &Api, command: Command) -> Result<(), ExecuteError> {
+async fn handle_mem(context: &Context, command: Command) -> Result<(), ExecuteError> {
     let message  = command.get_message();
     let chat_id  = message.get_chat_id();
     let args     = command.get_args();
@@ -91,7 +98,7 @@ async fn handle_mem(api: &Api, command: Command) -> Result<(), ExecuteError> {
     let answer = if args.is_empty() {
         match message.reply_to.clone() {
             None => {
-                match api.execute(DeleteMessage::new(chat_id, message.id)).await {
+                match context.api.execute(DeleteMessage::new(chat_id, message.id)).await {
                     Ok(_) => (),
                     Err(why) => println!("{}", why),
                 }
@@ -133,53 +140,53 @@ async fn handle_mem(api: &Api, command: Command) -> Result<(), ExecuteError> {
         }
     };
 
-    api.execute(SendMessage::new(chat_id, answer)).await?;
+    context.api.execute(SendMessage::new(chat_id, answer)).await?;
     Ok(())
 }
 
 #[handler(command = "/stop")]
-async fn handle_stop(api: &Api, command: Command) -> Result<(), ExecuteError> {
+async fn handle_stop(context: &Context, command: Command) -> Result<(), ExecuteError> {
     log::info!("handle /stop command\n");
     let message = command.get_message();
     let chat_id = message.get_chat_id();
     let method = SendMessage::new(chat_id, "Cant stop me now!");
-    api.execute(method).await?;
+    context.api.execute(method).await?;
     Ok(())
 }
 
 #[handler(command = "/it")]
-async fn handle_ithappens(api: &Api, command: Command) -> Result<(), ExecuteError> {
+async fn handle_ithappens(context: &Context, command: Command) -> Result<(), ExecuteError> {
     let chat_id = command.get_message().get_chat_id();
 
-    let answer = match sources::ithappens() {
+    let answer = match sources::ithappens().await {
         Ok(body) => body,
         Err(_) => "not found".to_string(),
     };
 
-    api.execute(SendMessage::new(chat_id, answer)).await?;
+    context.api.execute(SendMessage::new(chat_id, answer)).await?;
     Ok(())
 }
 
 #[handler(command = "/a")]
-async fn handle_anekdot(api: &Api, command: Command) -> Result<(), ExecuteError> {
+async fn handle_anekdot(context: &Context, command: Command) -> Result<(), ExecuteError> {
     let chat_id = command.get_message().get_chat_id();
 
-    let answer = match sources::anekdot() {
+    let answer = match sources::anekdot().await {
         Ok(body) => body,
         Err(_) => "not found".to_string(),
     };
 
-    api.execute(SendMessage::new(chat_id, answer)).await?;
+    context.api.execute(SendMessage::new(chat_id, answer)).await?;
 
     Ok(())
 }
 
 #[handler(command = "/corona")]
-async fn handle_corona(api: &Api, command: Command) -> Result<(), ExecuteError> {
+async fn handle_corona(context: &Context, command: Command) -> Result<(), ExecuteError> {
     let chat_id = command.get_message().get_chat_id();
     let args    = command.get_args();
-    let corona  = corona::Corona::new(args.to_vec());
-    let answer: String = match corona.get() {
+    let corona  = corona::Corona::new(args.to_vec()).await;
+    let answer: String = match corona.get().await {
         Ok(a) => a,
         Err(why) => {
             log::error!("Error while getting covid info: {}", why);
@@ -187,7 +194,7 @@ async fn handle_corona(api: &Api, command: Command) -> Result<(), ExecuteError> 
         },
     };
 
-    api.execute(SendMessage::new(chat_id, answer)
+    context.api.execute(SendMessage::new(chat_id, answer)
         .parse_mode(ParseMode::MarkdownV2)
     ).await?;
 
@@ -195,46 +202,61 @@ async fn handle_corona(api: &Api, command: Command) -> Result<(), ExecuteError> 
 }
 
 #[handler(command = "/b")]
-async fn handle_bashorg(api: &Api, command: Command) -> Result<(), ExecuteError> {
+async fn handle_bashorg(context: &Context, command: Command) -> Result<(), ExecuteError> {
     let chat_id = command.get_message().get_chat_id();
     let args = command.get_args();
 
     let answer = if args.is_empty() {
-        match sources::bash(0) {
+        match sources::bash(0).await {
             Ok(body) => body,
             Err(_) => "not found".to_string(),
         }
     } else {
-        match sources::bash(args[0].parse::<u64>().unwrap_or(0)) {
+        match sources::bash(args[0].parse::<u64>().unwrap_or(0)).await {
             Ok(body) => body,
             Err(_) => "not found".to_string(),
         }
     };
 
-    api.execute(SendMessage::new(chat_id, answer)).await?;
+    context.api.execute(SendMessage::new(chat_id, answer)).await?;
+
+    Ok(())
+}
+
+#[handler(command = "/count")]
+async fn handle_count(context: &Context, command: Command) -> Result<(), ExecuteError> {
+    let chat_id = command.get_message().get_chat_id();
+
+    let cnt = context.count.lock().await;
+
+    context.api.execute(SendMessage::new(chat_id, format!("count: {}", cnt))).await?;
 
     Ok(())
 }
 
 
 #[handler(command = "/dtp")]
-async fn handle_dtp(api: &Api, command: Command) -> Result<(), ExecuteError> {
+async fn handle_dtp(context: &Context, command: Command) -> Result<(), ExecuteError> {
     let chat_id = command.get_message().get_chat_id();
 
-    let answer = match sources::dtp() {
+    let answer = match sources::dtp().await {
         Ok(body) => body,
         Err(_) => "not found".to_string(),
     };
 
-    api.execute(SendMessage::new(chat_id, answer)).await?;
+    context.api.execute(SendMessage::new(chat_id, answer)).await?;
 
     Ok(())
 }
 
 
 #[handler(command = "/h")]
-async fn handle_help(api: &Api, command: Command) -> Result<(), ExecuteError> {
+async fn handle_help(context: &Context, command: Command) -> Result<(), ExecuteError> {
     let chat_id = command.get_message().get_chat_id();
+
+    let mut cnt = context.count.lock().await;
+    *cnt += 1;
+    log::info!("count: {}", cnt);
 
     let help_msg = r"
 /h - вызов справки
@@ -252,7 +274,7 @@ async fn handle_help(api: &Api, command: Command) -> Result<(), ExecuteError> {
 /corona [country] - covid stat by country
 /corona top [help] - top 5 by new cases";
 
-    api.execute(SendMessage::new(chat_id, help_msg)).await?;
+    context.api.execute(SendMessage::new(chat_id, help_msg)).await?;
 
     Ok(())
 }
@@ -266,7 +288,12 @@ async fn main() {
     let config = Config::new(token);
     let api = Api::new(config).expect("Failed to create API");
 
-    let mut dispatcher = Dispatcher::new(api.clone());
+    let count = Arc::new(Mutex::new(0));
+//     let mut dispatcher = Dispatcher::new(api.clone());
+    let mut dispatcher = Dispatcher::new(Context {
+        api: api.clone(),
+        count: count.clone(),
+    });
     dispatcher.add_handler(handle_start);
     dispatcher.add_handler(handle_stop);
     dispatcher.add_handler(handle_corona);
@@ -277,6 +304,7 @@ async fn main() {
     dispatcher.add_handler(handle_me);
     dispatcher.add_handler(handle_help);
     dispatcher.add_handler(handle_dtp);
+    dispatcher.add_handler(handle_count);
 
     LongPoll::new(api, dispatcher).run().await;
 }

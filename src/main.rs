@@ -1,31 +1,69 @@
 use carapax::{
+    access::{AccessHandler, AccessRule, InMemoryAccessPolicy, PrincipalChat},
     Api,
     Config,
     Dispatcher,
     longpoll::LongPoll,
+    LoggingErrorHandler,
+    ErrorPolicy,
+    ErrorHandler,
+    HandlerError,
 };
-use dotenv::dotenv;
+use async_trait::async_trait;
 use env_logger;
 use tokio::sync::Mutex;
-use std::{env, sync::Arc};
+use std::{sync::Arc, fs::read_to_string};
+use serde_derive::Deserialize;
 
 use hahabot::commands::*;
 use hahabot::Context;
 
+#[derive(Debug, Deserialize)]
+struct BotConfig {
+    token: String,
+    chats: Option<Vec<i64>>,
+    users: Option<Vec<String>>,
+}
+
+struct MyErrorHandler;
+
+#[async_trait]
+impl ErrorHandler for MyErrorHandler {
+    async fn handle(&mut self, err: HandlerError) -> ErrorPolicy {
+        ErrorPolicy::Continue
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    dotenv().ok();
     env_logger::init();
 
-    let token  = env::var("TGRS_TOKEN").expect("TGRS_TOKEN is not set");
-    let config = Config::new(token);
-    let api    = Api::new(config).expect("Failed to create API");
-    let count  = Arc::new(Mutex::new(0));
+    let config_string  = read_to_string("config.toml")?;
+    let cfg: BotConfig = toml::from_str(&config_string)?;
+    let config         = Config::new(cfg.token);
+    let api            = Api::new(config).expect("Failed to create API");
+    let count          = Arc::new(Mutex::new(0));
 
     let mut dispatcher = Dispatcher::new(Context {
-        api: api.clone(),
+        api:   api.clone(),
         count: count.clone(),
     });
+
+    dispatcher.set_error_handler(LoggingErrorHandler::new(ErrorPolicy::Continue));
+
+    if cfg.chats.is_some() {
+        let mut rules: Vec<AccessRule> = Vec::new();
+
+        for chat in cfg.chats.unwrap().iter() {
+            rules.push( AccessRule::allow_chat(PrincipalChat::Id(*chat)) );
+        }
+
+        let policy = InMemoryAccessPolicy::new(rules);
+        dispatcher.add_handler(AccessHandler::new(policy));
+    }
+
+
+    dispatcher.set_error_handler(MyErrorHandler);
 
     dispatcher.add_handler(handle_start);
     dispatcher.add_handler(handle_stop);

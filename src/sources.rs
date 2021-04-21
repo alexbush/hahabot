@@ -1,22 +1,13 @@
 use std::error::Error;
+use tokio::sync::Mutex;
 use htmlescape::decode_html;
 use select::predicate::{ Class, Name };
 use select::document::Document;
 use chrono::{ Utc, Datelike };
 use reqwest::get;
+use std::sync::Arc;
 
-// cache
-struct Dtp {
-    last_update: u32,
-    header:      String,
-    body:        String
-}
-
-static mut DTP_INFO: Dtp = Dtp {
-    last_update: 0,
-    header:      String::new(),
-    body:        String::new()
-};
+use super::DtpCache;
 
 pub async fn ithappens() -> Result<String, Box<dyn Error>> {
     let content = get("https://ithappens.me/random")
@@ -80,19 +71,19 @@ pub async fn bash(id: u64) -> Result<String, Box<dyn Error>> {
     Ok(format!("{}\n{}", quote_id, quote))
 }
 
-pub async fn dtp() -> Result<String, Box<dyn Error>> {
+pub async fn dtp(cache: &Arc<Mutex<DtpCache>>) -> Result<String, Box<dyn Error>> {
     let now = Utc::now();
 
-    unsafe {
-        if DTP_INFO.last_update != 0 &&
-            (DTP_INFO.last_update == now.day() ||
-            (now.weekday().number_from_monday() > 5 &&
-             DTP_INFO.last_update >= now.day() - (now.weekday().number_from_monday() - 5)))
-        {
-            let mut result: String = DTP_INFO.header.clone();
-            result.push_str(&format!("\n{}", DTP_INFO.body.as_str()));
-            return Ok(result);
-        }
+    let mut dtp_cache = cache.lock().await;
+
+    if dtp_cache.last_update != 0 &&
+        (dtp_cache.last_update == now.day() ||
+        (now.weekday().number_from_monday() > 5 &&
+         dtp_cache.last_update >= now.day() - (now.weekday().number_from_monday() - 5)))
+    {
+        let mut result: String = dtp_cache.header.clone();
+        result.push_str(&format!("\n{}", dtp_cache.body.as_str()));
+        return Ok(result);
     }
 
     let content = get("https://xn--90adear.xn--p1ai").await?.text().await?;
@@ -111,10 +102,8 @@ pub async fn dtp() -> Result<String, Box<dyn Error>> {
 
     header.push_str(&format!("{}\n", quote.find(Name("th")).next().unwrap().text().trim()));
 
-    unsafe {
-        DTP_INFO.last_update = now.day();
-        DTP_INFO.header = header.clone();
-    }
+    dtp_cache.last_update = now.day();
+    dtp_cache.header = header.clone();
 
     let mut i = 0;
     quote.find(Name("td")).for_each(|x| {
@@ -126,9 +115,7 @@ pub async fn dtp() -> Result<String, Box<dyn Error>> {
         i = i + 1;
     });
 
-    unsafe {
-        DTP_INFO.body = body.clone();
-    }
+    dtp_cache.body = body.clone();
 
     result.push_str(&format!("{}\n", header.as_str()));
     result.push_str(&format!("{}", body.as_str()));

@@ -1,5 +1,10 @@
 use carapax::{
-    access::{AccessHandler, AccessRule, InMemoryAccessPolicy, PrincipalChat},
+    access::{
+        AccessHandler,
+        AccessRule,
+        InMemoryAccessPolicy,
+        PrincipalChat
+    },
     Api,
     Config,
     Dispatcher,
@@ -12,11 +17,15 @@ use carapax::{
 use async_trait::async_trait;
 use env_logger;
 use tokio::sync::Mutex;
-use std::{sync::Arc, fs::read_to_string};
+use std::{
+    sync::Arc,
+    fs::read_to_string
+};
 use serde_derive::Deserialize;
 
 use hahabot::commands::*;
 use hahabot::Context;
+use hahabot::DtpCache;
 
 #[derive(Debug, Deserialize)]
 struct BotConfig {
@@ -45,8 +54,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let count          = Arc::new(Mutex::new(0));
 
     let mut dispatcher = Dispatcher::new(Context {
-        api:   api.clone(),
-        count: count.clone(),
+        api:             api.clone(),
+        count:           count.clone(),
+        dtp_cache:       Arc::new(Mutex::new(DtpCache {
+            last_update: 0,
+            header:      String::new(),
+            body:        String::new(),
+        }))
     });
 
     dispatcher.set_error_handler(LoggingErrorHandler::new(ErrorPolicy::Continue));

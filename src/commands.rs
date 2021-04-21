@@ -225,7 +225,7 @@ pub async fn handle_count(context: &Context, command: Command) -> Result<(), Exe
 pub async fn handle_dtp(context: &Context, command: Command) -> Result<(), ExecuteError> {
     let chat_id = command.get_message().get_chat_id();
 
-    let answer = match sources::dtp().await {
+    let answer = match sources::dtp(&context.dtp_cache).await {
         Ok(body) => body,
         Err(_) => "not found".to_string(),
     };

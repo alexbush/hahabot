@@ -3,8 +3,8 @@
 
 ## 1. add a token
 ```
-$ cp env .env
-$ vim .env
+$ cp config.toml.example config.toml
+$ vim config.toml
 ```
 
 ## 2. create database

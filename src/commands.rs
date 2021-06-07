@@ -28,8 +28,14 @@ pub async fn handle_me(context: &Context, command: Command) -> Result<(), Execut
     let message = command.get_message();
     let chat_id = message.get_chat_id();
 
-    println!("{:#?}", message);
-
+    match message.get_text() {
+        None => return Ok(()),
+        Some(text) => {
+            if !text.data.starts_with("/me") {
+                return Ok(());
+            }
+        }
+    };
 
     let me: String = match message.get_user() {
         Some(u) => match u.username.clone() {
@@ -41,7 +47,7 @@ pub async fn handle_me(context: &Context, command: Command) -> Result<(), Execut
 
     let user_message: String = match message.get_text() {
         Some(text) => text.data.clone().replace("/me ", ""),
-        None => "something".to_string(),
+        None => "nothing".to_string(),
     };
 
     match context.api.execute(DeleteMessage::new(chat_id, message.id)).await {
@@ -49,18 +55,27 @@ pub async fn handle_me(context: &Context, command: Command) -> Result<(), Execut
         Err(why) => println!("{}", why),
     }
 
-    let answer = match message.reply_to.clone() {
-        None => format!("{} {}", me, user_message),
-        Some(reply) => match reply.get_user() {
-            Some(user) => match user.username.clone() {
-                Some(username) => format!("@{}, {} {}", username, me, user_message),
-                None => format!("{}, {} {}", user.first_name.clone(), me, user_message),
-            },
-            None => format!("{} {}", me, user_message),
-        }
-    };
-
-    context.api.execute(SendMessage::new(chat_id, answer)).await?;
+    if let Some(reply) = message.reply_to.clone() {
+        if let Some(user) = reply.get_user() {
+            match user.username.clone() {
+                Some(username) => {
+                    context.api.execute(
+                        SendMessage::new(
+                            chat_id, &format!("@{}, {} {}", username, me, user_message)
+                        ).reply_to_message_id(reply.id)).await?;
+                }
+                None => {
+                    context.api.execute(SendMessage::new(
+                            chat_id,
+                            &format!("{}, {} {}", user.first_name, me, user_message)
+                    )).await?;
+                }
+            }
+        };
+    } else {
+        context.api.execute(SendMessage::new(
+            chat_id, &format!("{} {}", me, user_message))).await?;
+    }
 
     Ok(())
 }

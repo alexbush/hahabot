@@ -16,6 +16,7 @@ use carapax::{
 };
 use async_trait::async_trait;
 use env_logger;
+use log::info;
 use tokio::sync::Mutex;
 use std::{
     sync::Arc,
@@ -38,7 +39,7 @@ struct MyErrorHandler;
 
 #[async_trait]
 impl ErrorHandler for MyErrorHandler {
-    async fn handle(&mut self, err: HandlerError) -> ErrorPolicy {
+    async fn handle(&mut self, _: HandlerError) -> ErrorPolicy {
         ErrorPolicy::Continue
     }
 }
@@ -49,9 +50,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let config_string  = read_to_string("config.toml")?;
     let cfg: BotConfig = toml::from_str(&config_string)?;
+    info!("{:?}", cfg);
     let config         = Config::new(cfg.token);
     let api            = Api::new(config).expect("Failed to create API");
     let count          = Arc::new(Mutex::new(0));
+
 
     let mut dispatcher = Dispatcher::new(Context {
         api:             api.clone(),

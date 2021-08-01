@@ -76,6 +76,15 @@ impl Memo {
 
         Ok(msg)
     }
+    pub fn remove(&mut self, id: i64) -> Result<bool> {
+        let db = Connection::open(&PATH)?;
+        let query = format!(
+            "DELETE FROM `{}` WHERE id = ?1", self.table
+        );
+        db.execute(query.as_str(), params![id])?;
+
+        Ok(true)
+    }
     pub fn save(self) -> Result<()> {
         let db = Connection::open(&PATH)?;
 

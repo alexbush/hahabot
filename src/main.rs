@@ -38,7 +38,7 @@ struct MyErrorHandler;
 
 #[async_trait]
 impl ErrorHandler for MyErrorHandler {
-    async fn handle(&mut self, err: HandlerError) -> ErrorPolicy {
+    async fn handle(&mut self, _err: HandlerError) -> ErrorPolicy {
         ErrorPolicy::Continue
     }
 }
@@ -86,6 +86,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dispatcher.add_handler(handle_bashorg);
     dispatcher.add_handler(handle_ithappens);
     dispatcher.add_handler(handle_mem);
+    dispatcher.add_handler(handle_del_mem);
     dispatcher.add_handler(handle_me);
     dispatcher.add_handler(handle_help);
     dispatcher.add_handler(handle_dtp);

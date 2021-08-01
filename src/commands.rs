@@ -145,6 +145,25 @@ pub async fn handle_mem(context: &Context, command: Command) -> Result<(), Execu
     Ok(())
 }
 
+#[handler(command = "/d")]
+pub async fn handle_del_mem(_: &Context, command: Command) -> Result<(), ExecuteError> {
+    let message  = command.get_message();
+    let chat_id  = message.get_chat_id();
+    let args     = command.get_args();
+    let mut memo = memory::Memo::new(chat_id);
+
+    if !args.is_empty() {
+        match args[0].parse::<i64>() {
+            Ok(id) => {
+                memo.remove(id).unwrap();
+            }
+            Err(_) => {}
+        }
+    } else {}
+
+    Ok(())
+}
+
 #[handler(command = "/stop")]
 pub async fn handle_stop(context: &Context, command: Command) -> Result<(), ExecuteError> {
     log::info!("handle /stop command\n");

@@ -45,7 +45,7 @@ pub async fn bash(id: u64) -> Result<String, Box<dyn Error>> {
     if id != 0 {
         url = format!("https://bash.im/quote/{}", id)
     } else {
-        url = format!("https://bash.im/random")
+        url = String::from("https://bash.im/random")
     };
     let content = get(&url).await?.text().await?;
     let html: &str = &content;
@@ -112,13 +112,13 @@ pub async fn dtp(cache: &Arc<Mutex<DtpCache>>) -> Result<String, Box<dyn Error>>
         } else {
             body.push_str(&format!("{}\n", x.text()));
         }
-        i = i + 1;
+        i += 1;
     });
 
     dtp_cache.body = body.clone();
 
     result.push_str(&format!("{}\n", header.as_str()));
-    result.push_str(&format!("{}", body.as_str()));
+    result.push_str(&format!("{}", body.as_str())); // Can be rewritten with push_str(&body);
 
     Ok(result)
 }

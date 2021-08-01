@@ -5,14 +5,16 @@ use carapax::{
     methods::{ SendMessage, DeleteMessage},
     types::{Command, ParseMode},
 };
-use log;
 use crate::memory;
 use crate::sources;
 use crate::corona;
 use crate::Context;
 
 #[handler(command = "/start")]
-pub async fn handle_start(context: &Context, command: Command) -> Result<HandlerResult, ExecuteError> {
+pub async fn handle_start(
+    context: &Context,
+    command: Command
+) -> Result<HandlerResult, ExecuteError> {
     let chat_id = command.get_message().get_chat_id();
     match memory::create_table(chat_id) {
         Ok(_) => log::info!("table {} created", chat_id),
@@ -104,12 +106,12 @@ pub async fn handle_mem(context: &Context, command: Command) -> Result<(), Execu
                     Err(why) => println!("{}", why),
                 }
 
-                memo.get(None).unwrap_or("not found".to_string())
+                memo.get(None).unwrap_or_else(|_| "not found".to_string())
             },
             Some(reply) => match reply.get_text() {
                 None => "forward message not found".to_string(),
                 Some(text) => {
-                    memo.set_message(text.data.clone());
+                    memo.set_message(&text.data.replace("/m", "").trim());
                     match memo.save() {
                         Ok(_) => "saved".to_string(),
                         Err(err) => {
@@ -122,12 +124,12 @@ pub async fn handle_mem(context: &Context, command: Command) -> Result<(), Execu
         }
     } else {
         match args[0].parse::<i64>() {
-            Ok(id) => memo.get(Some(id)).unwrap_or("not found".to_string()),
+            Ok(id) => memo.get(Some(id)).unwrap_or_else(|_| "not found".to_string()),
             Err(_) => {
                 match message.get_text() {
                     None => "".to_string(),
                     Some(text) => {
-                        memo.set_message(text.data.clone());
+                        memo.set_message(text.data.replace("/m", "").trim());
                         match memo.save() {
                             Ok(_) => "saved".to_string(),
                             Err(err) => {
@@ -145,7 +147,7 @@ pub async fn handle_mem(context: &Context, command: Command) -> Result<(), Execu
     Ok(())
 }
 
-#[handler(command = "/d")]
+#[handler(command = "/md")]
 pub async fn handle_del_mem(_: &Context, command: Command) -> Result<(), ExecuteError> {
     let message  = command.get_message();
     let chat_id  = message.get_chat_id();
@@ -210,7 +212,7 @@ pub async fn handle_corona(context: &Context, command: Command) -> Result<(), Ex
         Ok(a) => a,
         Err(why) => {
             log::error!("Error while getting covid info: {}", why);
-            format!("Meow, I have paws ^_^")
+            String::from("Meow, I have paws ^_^")
         },
     };
 

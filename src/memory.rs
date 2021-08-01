@@ -1,12 +1,10 @@
 use rusqlite::{params, Connection, Result};
-use log;
 
 const PATH: &str = "./memory.sqlite";
 
 fn rename(id: i64) -> String {
     let s = format!("{}", id);
-    let table = s.replace("-", "minus_");
-    table
+    s.replace("-", "minus_")
 }
 
 pub fn create_table(chat_id: i64) -> Result<()> {
@@ -53,10 +51,12 @@ impl Memo {
             message    : None,
         }
     }
-    pub fn set_message(&mut self, message: String) -> &Self {
-        self.message = Some(message);
+    pub fn set_message(&mut self, message: &str) -> &Self {
+        self.message = Some(message.to_owned());
         self
     }
+
+    #[allow(clippy::unit_arg)]
     pub fn get(&mut self, id: Option<i64>) -> Result<String> {
         let db = Connection::open(&PATH)?;
         let mut msg = String::new();

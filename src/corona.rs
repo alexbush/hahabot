@@ -153,7 +153,7 @@ async fn top(by: String) -> Result<String, Box<dyn Error>> {
     let mut result: String = "".to_string();
 
     if by == "help" {
-        result = format!("Available sort values: cases, todayCases, deaths, todayDeaths");
+        result = String::from("Available sort values: cases, todayCases, deaths, todayDeaths");
     } else {
         let all = Api::new().await.countries(by, false).await?;
 
@@ -234,7 +234,7 @@ pub struct Corona {
 }
 
 impl Corona {
-    pub async fn new(args: Vec<String>) -> Self { Self { args: args } }
+    pub async fn new(args: Vec<String>) -> Self { Self { args } }
 
     pub async fn get(&self) -> Result<String, Box<dyn Error>> {
         if self.args.is_empty() {
@@ -263,7 +263,7 @@ fn fuzzy_find(pattern: &str, countries: Vec<String>) -> Vec<String> {
     let mut dist_min: usize = 5;
 
     for country in countries.iter() {
-        if pattern.clone().to_lowercase() == country.to_lowercase() {
+        if pattern.to_lowercase() == country.to_lowercase() {
             return [pattern.to_string()].to_vec();
         }
 
